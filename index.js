@@ -1,43 +1,48 @@
-require('dotenv').config(); // Ensure this is near the top of your file
+require('dotenv').config();
 
 const express = require('express');
-const bodyParser = require('body-parser');
-const axios = require('axios');
+const fs = require('fs');
+const simpleGit = require('simple-git');
 
 const app = express();
+const git = simpleGit();
 
-// Use environment variables
-const githubToken = process.env.GITHUB_TOKEN;
-const repoOwner = process.env.REPO_OWNER;
-const repoName = process.env.REPO_NAME;
-const filePath = process.env.FILE_PATH;
+// Replace these with your GitHub username, repository name, and token
+const username = process.env.REPO_OWNER;
+const repo = process.env.REPO_NAME;
+const token = process.env.GITHUB_TOKEN;
 
-app.use(bodyParser.json());
+app.get('/like', (req, res) => {
+  fs.readFile('like.txt', 'utf8', (readErr, data) => {
+    if (readErr) {
+      console.error(readErr);
+      res.status(500).send('An error occurred');
+      return;
+    }
 
-app.post('/like', async (req, res) => {
-  try {
-    // Fetch the current content of the file
-    const fileResponse = await axios.get(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`, {
-      headers: { Authorization: `token ${githubToken}` },
+    const likeCount = Number(data);
+    fs.writeFile('like.txt', `${likeCount + 1}`, (writeErr) => {
+      if (writeErr) {
+        console.error(writeErr);
+        res.status(500).send('An error occurred');
+        return;
+      }
+
+      git.add('like.txt')
+        .commit('Incremented like count')
+        .push(`https://${token}@github.com/${username}/${repo}.git`, 'master', (pushErr) => {
+          if (pushErr) {
+            console.error(pushErr);
+            res.status(500).send('An error occurred');
+            return;
+          }
+
+          res.send('Like count incremented');
+        });
     });
-
-    const currentLikes = parseInt(Buffer.from(fileResponse.data.content, 'base64').toString(), 10);
-    const updatedLikes = currentLikes + 1;
-
-    // Update the file with the new like count
-    await axios.put(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`, {
-      message: 'Update like count',
-      content: Buffer.from(updatedLikes.toString()).toString('base64'),
-      sha: fileResponse.data.sha,
-    }, {
-      headers: { Authorization: `token ${githubToken}` },
-    });
-
-    res.json({ success: true, updatedLikes });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'An error occurred while updating the like count.' });
-  }
+  });
 });
 
-module.exports = app;
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
