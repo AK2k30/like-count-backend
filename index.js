@@ -12,12 +12,22 @@ app.post('/like', async (req, res) => {
       headers: { Authorization: `token ${GITHUB_TOKEN}` },
     });
 
-    const currentLikes = parseInt(Buffer.from(fileResponse.data.content, 'base64').toString(), 10);
+    const decodedContent = Buffer.from(fileResponse.data.content, 'base64').toString();
+    const currentLikes = parseInt(decodedContent, 10);
+
+    // Check if parsing resulted in NaN
+    if (Number.isNaN(currentLikes)) {
+      console.error('Current like count is not a number:', decodedContent);
+      return res.status(400).json({ success: false, message: 'Current like count is not a number', details: decodedContent });
+    }
+
     const updatedLikes = currentLikes + 1;
+
+    const updatedContent = Buffer.from(updatedLikes.toString()).toString('base64');
 
     await axios.put(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
       message: 'Update like count',
-      content: Buffer.from(updatedLikes.toString()).toString('base64'),
+      content: updatedContent,
       sha: fileResponse.data.sha,
     }, {
       headers: { Authorization: `token ${GITHUB_TOKEN}` },
