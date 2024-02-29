@@ -1,48 +1,34 @@
 require('dotenv').config();
-
 const express = require('express');
-const fs = require('fs');
-const simpleGit = require('simple-git');
+const axios = require('axios');
 
 const app = express();
-const git = simpleGit();
 
-// Replace these with your GitHub username, repository name, and token
-const username = process.env.REPO_OWNER;
-const repo = process.env.REPO_NAME;
-const token = process.env.GITHUB_TOKEN;
+const { GITHUB_TOKEN, REPO_OWNER, REPO_NAME, FILE_PATH } = process.env;
 
-app.get('/like', (req, res) => {
-  fs.readFile('like.txt', 'utf8', (readErr, data) => {
-    if (readErr) {
-      console.error(readErr);
-      res.status(500).send('An error occurred');
-      return;
-    }
-
-    const likeCount = Number(data);
-    fs.writeFile('like.txt', `${likeCount + 1}`, (writeErr) => {
-      if (writeErr) {
-        console.error(writeErr);
-        res.status(500).send('An error occurred');
-        return;
-      }
-
-      git.add('like.txt')
-        .commit('Incremented like count')
-        .push(`https://${token}@github.com/${username}/${repo}.git`, 'master', (pushErr) => {
-          if (pushErr) {
-            console.error(pushErr);
-            res.status(500).send('An error occurred');
-            return;
-          }
-
-          res.send('Like count incremented');
-        });
+app.post('/like', async (req, res) => {
+  try {
+    const fileResponse = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      headers: { Authorization: `token ${GITHUB_TOKEN}` },
     });
-  });
+
+    const currentLikes = parseInt(Buffer.from(fileResponse.data.content, 'base64').toString(), 10);
+    const updatedLikes = currentLikes + 1;
+
+    await axios.put(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+      message: 'Update like count',
+      content: Buffer.from(updatedLikes.toString()).toString('base64'),
+      sha: fileResponse.data.sha,
+    }, {
+      headers: { Authorization: `token ${GITHUB_TOKEN}` },
+    });
+
+    res.json({ success: true, updatedLikes });
+  } catch (error) {
+    console.error('Failed to update like count:', error.response ? error.response.data : error);
+    res.status(500).json({ success: false, message: 'An error occurred.', details: error.response ? error.response.data : error });
+  }
 });
 
-app.listen(3000, () => {
-  console.log('Server is running on port 3000');
-});
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Listening on port ${port}`));
