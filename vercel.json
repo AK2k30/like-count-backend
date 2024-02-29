@@ -12,9 +12,4 @@
       "dest": "/index.js"
     }
   ],
-  "env": {
-    "REPO_OWNER": "@repo_owner",
-    "REPO_NAME": "@repo_name",
-    "FILE_PATH": "@file_path"
-  }
 }
