@@ -1,10 +1,5 @@
 {
     "version": 2,
-    "env": {
-      "REPO_OWNER": "@repo_owner",
-      "REPO_NAME": "@repo_name",
-      "FILE_PATH": "@file_path"
-    },
     "builds": [
       {
         "src": "./index.js",
