@@ -6,10 +6,7 @@ const axios = require('axios');
 const app = express();
 
 // Configure CORS to only accept requests from your frontend domain
-app.use(cors({
-  origin: 'https://giveway.mygiveway.tech',
-  optionsSuccessStatus: 200, // For legacy browser support
-}));
+app.use(cors());
 
 app.use(express.json()); // For parsing application/json
 
